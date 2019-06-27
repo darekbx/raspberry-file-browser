@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"github.com/paypal/gatt"
 	"github.com/paypal/gatt/linux/cmd"
-	"cosmoseservice"
+	"btservice"
 )
 
 var DefaultServerOptions = []gatt.Option{
@@ -36,7 +36,6 @@ func main() {
 		gatt.CentralConnected(func(c gatt.Central) { fmt.Printf("Connect to %s\n", string(deviceName)) }),
 		gatt.CentralDisconnected(func(c gatt.Central) {
 			fmt.Printf("Disconnect device %s\n ", string(deviceName))
-			cosmose.Reset()
 		}),
 	)
 
@@ -44,7 +43,7 @@ func main() {
 		fmt.Printf("State: %s\n", s)
 		switch s {
 		case gatt.StatePoweredOn:
-			s1 := cosmose.NewCosmoseService()
+			s1 := device.NewService()
 			d.AddService(s1)
 			d.AdvertiseNameAndServices(string(deviceName), []gatt.UUID{s1.UUID()})
 		default:

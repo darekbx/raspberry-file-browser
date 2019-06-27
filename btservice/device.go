@@ -1,107 +1,89 @@
-package cosmose
+package device
 
 import (
 	"fmt"
 	"log"
-	"time"
 	"math"
-	"strings"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/paypal/gatt"
 )
 
-var serviceUuid = "09fc95c0-c111-11e3-9904-0002a5d5c51b"
-var writeCharacteristicUuid = "16fe0d80-c111-11e3-b8c8-0002a5d5c51b"
-var notifyCharacteristicUuid = "1c927b50-c116-11e3-8a33-0800200c9a66"
-var scanJob = "/home/pi/projects/pi-scanner/job.sh"
-var combinedJobParameter = " --combined"
-var regionSetJob = "sh /home/pi/region_set.sh "
-var restartJob = "/home/pi/restart.sh"
-var chunkSize = 10.0
-var scanWifi = false
+var serviceUUID = "00000000-1111-2222-3333-000000000001"
+var writeCharacteristicUUID = "00000000-1111-2222-3333-000000000010"
+var notifyCharacteristicUUID = "00000000-1111-2222-3333-000000000020"
 
-func Reset() {
-	scanWifi = false
-	log.Println("Performing reset")
-}
+var chunkStartHeader = "---start-"
+var chunkEndHeader = "---end-"
+
+var chunkSize = 20.0
+var command = ""
+var commandChunks = []string{}
+var hasIncomingPacket = false
 
 func printPackets(input string, chunkSize float64, n gatt.Notifier) {
 	length := len(input)
 	chunks := math.Ceil(float64(length) / chunkSize)
-	for i := 0; i < int(chunks); i ++ {
+	for i := 0; i < int(chunks); i++ {
 		chunkSizeInt := int(chunkSize)
 		start := i * chunkSizeInt
-		end := int(math.Min(float64(length), float64(start) + chunkSize))
+		end := int(math.Min(float64(length), float64(start)+chunkSize))
 		chunk := input[start:end]
 		fmt.Fprintf(n, "%s", chunk)
 	}
 }
 
-func NewCosmoseService() *gatt.Service {
-	noopDelay := 250 * time.Millisecond
-	scanWifi := false
-	isCombinedScan := false
+func mergePackets(packet string) {
+	if strings.HasPrefix(packet, chunkStartHeader) {
+		commandChunks = []string{}
+		hasIncomingPacket = true
+	} else if strings.HasPrefix(packet, chunkEndHeader) {
+		hasIncomingPacket = false
 
-	s := gatt.NewService(gatt.MustParseUUID(serviceUuid))
-	s.AddCharacteristic(gatt.MustParseUUID(writeCharacteristicUuid)).HandleWriteFunc(
+		// TODO merge strings and assign to 'command'
+
+	} else if hasIncomingPacket {
+		commandChunks = append(commandChunks, packet)
+	}
+}
+
+// NewService : create new bluetooth service
+func NewService() *gatt.Service {
+	noopDelay := 250 * time.Millisecond
+	command := ""
+
+	s := gatt.NewService(gatt.MustParseUUID(serviceUUID))
+	s.AddCharacteristic(gatt.MustParseUUID(writeCharacteristicUUID)).HandleWriteFunc(
 		func(r gatt.Request, data []byte) (status byte) {
 			log.Println("Action received: ", string(data))
-			chunks := strings.Split(string(data), ":")
-			action := chunks[0]
-			var argument string
-			if len(chunks) == 2 {
-				argument = chunks[1]
-				log.Println("Action argument: ", string(argument))
-			}
-			switch string(action) {
-				case "start":
-					scanWifi = true
-					if argument != "" {
-						isCombinedScan = true
-					}
-				case "stop":
-					scanWifi = false
-				case "region":
-					log.Println("Setting wireless region to:", string(argument))
-					regionErr := exec.Command("sh", "-c", regionSetJob + string(argument)).Run()
-					if regionErr != nil {
-						log.Println(regionErr)
-					}
-				case "restart":
-					log.Println("Restarting server...")
-					exec.Command("/bin/bash", restartJob).Run()
-					log.Println("Restart completed")
-			}
+			command = string(data)
 			return gatt.StatusSuccess
 		})
 
-	s.AddCharacteristic(gatt.MustParseUUID(notifyCharacteristicUuid)).HandleNotifyFunc(
+	s.AddCharacteristic(gatt.MustParseUUID(notifyCharacteristicUUID)).HandleNotifyFunc(
 		func(r gatt.Request, n gatt.Notifier) {
 			for !n.Done() {
-				if scanWifi {
-					parameter := ""
-					if isCombinedScan {
-						log.Println("Combined scan in progress...")
-						parameter = combinedJobParameter
-						isCombinedScan = false
-					} else {
-						log.Println("scan in progress...")
-					}
-					out, err := exec.Command("/bin/bash", scanJob, parameter).Output()
+
+				if len(command) > 0 {
+					out, err := exec.Command("/bin/bash", command).Output()
+					command = ""
+					outString := ""
 					if err != nil {
-						log.Println(err)
+						outString = string(err.Error())
 					} else {
-						outString := string(out)
-						fmt.Fprintf(n, "---start-%d", len(outString))
-						printPackets(outString, chunkSize, n)
-						fmt.Fprintf(n, "---end-%d", len(outString))
-						log.Println("Printing packets...")
+						outString = string(out)
 					}
-				} else {
-					log.Println("NOOP")
-					time.Sleep(noopDelay)
+
+					fmt.Fprintf(n, "---start-%d", len(outString))
+					printPackets(outString, chunkSize, n)
+					fmt.Fprintf(n, "---end-%d", len(outString))
+					log.Println("Printing packets...")
 				}
+
+				log.Println("NOOP")
+				time.Sleep(noopDelay)
 			}
 		})
 
