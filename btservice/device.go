@@ -41,9 +41,7 @@ func mergePackets(packet string) {
 		hasIncomingPacket = true
 	} else if strings.HasPrefix(packet, chunkEndHeader) {
 		hasIncomingPacket = false
-
-		// TODO merge strings and assign to 'command'
-
+		command = strings.Join(commandChunks, "")
 	} else if hasIncomingPacket {
 		commandChunks = append(commandChunks, packet)
 	}
@@ -57,8 +55,8 @@ func NewService() *gatt.Service {
 	s := gatt.NewService(gatt.MustParseUUID(serviceUUID))
 	s.AddCharacteristic(gatt.MustParseUUID(writeCharacteristicUUID)).HandleWriteFunc(
 		func(r gatt.Request, data []byte) (status byte) {
-			log.Println("Action received: ", string(data))
-			command = string(data)
+			log.Println("Data received: ", string(data))
+			mergePackets(string(data))
 			return gatt.StatusSuccess
 		})
 
