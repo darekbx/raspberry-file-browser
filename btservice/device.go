@@ -11,9 +11,9 @@ import (
 	"github.com/paypal/gatt"
 )
 
-var serviceUUID = "00000000-1111-2222-3333-000000000001"
-var writeCharacteristicUUID = "00000000-1111-2222-3333-000000000010"
-var notifyCharacteristicUUID = "00000000-1111-2222-3333-000000000020"
+var serviceUUID = "eabea763-8144-4652-a831-82fc9d4e645c"
+var writeCharacteristicUUID = "2e7a6c4b-b70e-49b6-acf9-2be297ac29e9"
+var notifyCharacteristicUUID = "25db62b2-00d3-4df9-b7e0-125623d67008"
 
 var chunkStartHeader = "---start-"
 var chunkEndHeader = "---end-"
