@@ -19,9 +19,10 @@ var chunkStartHeader = "---start-"
 var chunkEndHeader = "---end-"
 
 var chunkSize = 20.0
-var command = ""
 var commandChunks = []string{}
 var hasIncomingPacket = false
+
+var Command string = ""
 
 func printPackets(input string, chunkSize float64, n gatt.Notifier) {
 	length := len(input)
@@ -41,7 +42,8 @@ func mergePackets(packet string) {
 		hasIncomingPacket = true
 	} else if strings.HasPrefix(packet, chunkEndHeader) {
 		hasIncomingPacket = false
-		command = strings.Join(commandChunks, "")
+		Command = strings.Join(commandChunks, "")
+		log.Println("Merged command: ", string(Command))
 	} else if hasIncomingPacket {
 		commandChunks = append(commandChunks, packet)
 	}
@@ -50,7 +52,7 @@ func mergePackets(packet string) {
 // NewService : create new bluetooth service
 func NewService() *gatt.Service {
 	noopDelay := 250 * time.Millisecond
-	command := ""
+	Command = ""
 
 	s := gatt.NewService(gatt.MustParseUUID(serviceUUID))
 	s.AddCharacteristic(gatt.MustParseUUID(writeCharacteristicUUID)).HandleWriteFunc(
@@ -64,16 +66,17 @@ func NewService() *gatt.Service {
 		func(r gatt.Request, n gatt.Notifier) {
 			for !n.Done() {
 
-				if len(command) > 0 {
-					out, err := exec.Command("/bin/bash", command).Output()
-					command = ""
+				if len(Command) > 0 {
+					log.Println("Execute: ", string(Command))
+					out, err := exec.Command("/bin/sh", "-c", Command).Output()
+					Command = ""
 					outString := ""
 					if err != nil {
 						outString = string(err.Error())
 					} else {
 						outString = string(out)
 					}
-
+					log.Println("Output: ", outString)
 					fmt.Fprintf(n, "---start-%d", len(outString))
 					printPackets(outString, chunkSize, n)
 					fmt.Fprintf(n, "---end-%d", len(outString))

@@ -1,0 +1,1 @@
+sudo GOPATH=/home/pi/gopath go run /home/pi/gopath/src/btservice/server.go
