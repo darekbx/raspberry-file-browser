@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+    "bytes"
+	"compress/gzip"
+	b64 "encoding/base64"
 
 	"github.com/paypal/gatt"
 )
@@ -34,6 +37,21 @@ func printPackets(input string, chunkSize float64, n gatt.Notifier) {
 		chunk := input[start:end]
 		fmt.Fprintf(n, "%s", chunk)
 	}
+}
+
+func compress(input string) string {
+	var buffer bytes.Buffer
+    gz := gzip.NewWriter(&buffer)
+    if _, err := gz.Write([]byte(input)); err != nil {
+        return string(err)
+    }
+    if err := gz.Flush(); err != nil {
+        return string(err)
+    }
+    if err := gz.Close(); err != nil {
+        return string(err)
+	}
+	return b64.StdEncoding.EncodeToString(buffer.Bytes())
 }
 
 func mergePackets(packet string) {
@@ -71,10 +89,11 @@ func NewService() *gatt.Service {
 					out, err := exec.Command("/bin/sh", "-c", Command).Output()
 					Command = ""
 					outString := ""
+					// Errors are raw string, valid output is compressed string in base64 format
 					if err != nil {
 						outString = string(err.Error())
 					} else {
-						outString = string(out)
+						outString = compress(string(out))
 					}
 					log.Println("Output: ", outString)
 					fmt.Fprintf(n, "---start-%d", len(outString))

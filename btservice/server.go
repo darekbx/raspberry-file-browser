@@ -24,9 +24,9 @@ var DefaultServerOptions = []gatt.Option{
 
 func main() {
 	deviceName, err := ioutil.ReadFile("/home/pi/device_name")
-    	if err != nil {
-        	fmt.Print(err)
-    	}
+	if err != nil {
+		fmt.Print(err)
+	}
 	d, err := gatt.NewDevice(DefaultServerOptions...)
 	if err != nil {
 		log.Fatalf("Failed to open device, err: %s", err)
