@@ -1,15 +1,15 @@
 package device
 
 import (
+	"bytes"
+	"compress/gzip"
+	b64 "encoding/base64"
 	"fmt"
 	"log"
 	"math"
 	"os/exec"
 	"strings"
 	"time"
-    "bytes"
-	"compress/gzip"
-	b64 "encoding/base64"
 
 	"github.com/paypal/gatt"
 )
@@ -25,7 +25,8 @@ var chunkSize = 20.0
 var commandChunks = []string{}
 var hasIncomingPacket = false
 
-var Command string = ""
+// Command container
+var Command string
 
 func printPackets(input string, chunkSize float64, n gatt.Notifier) {
 	length := len(input)
@@ -41,15 +42,15 @@ func printPackets(input string, chunkSize float64, n gatt.Notifier) {
 
 func compress(input string) string {
 	var buffer bytes.Buffer
-    gz := gzip.NewWriter(&buffer)
-    if _, err := gz.Write([]byte(input)); err != nil {
-        return string(err)
-    }
-    if err := gz.Flush(); err != nil {
-        return string(err)
-    }
-    if err := gz.Close(); err != nil {
-        return string(err)
+	gz := gzip.NewWriter(&buffer)
+	if _, err := gz.Write([]byte(input)); err != nil {
+		return string(err.Error())
+	}
+	if err := gz.Flush(); err != nil {
+		return string(err.Error())
+	}
+	if err := gz.Close(); err != nil {
+		return string(err.Error())
 	}
 	return b64.StdEncoding.EncodeToString(buffer.Bytes())
 }
